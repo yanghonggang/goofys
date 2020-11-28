@@ -15,7 +15,7 @@
 package internal
 
 import (
-	. "github.com/kahing/goofys/api/common"
+	. "goofys/api/common"
 
 	"context"
 	"fmt"
@@ -101,23 +101,11 @@ func NewBackend(bucket string, flags *FlagStorage) (cloud StorageBackend, err er
 	if flags.Backend == nil {
 		flags.Backend = (&S3Config{}).Init()
 	}
-
-	if config, ok := flags.Backend.(*AZBlobConfig); ok {
-		cloud, err = NewAZBlob(bucket, config)
-	} else if config, ok := flags.Backend.(*ADLv1Config); ok {
-		cloud, err = NewADLv1(bucket, flags, config)
-	} else if config, ok := flags.Backend.(*ADLv2Config); ok {
-		cloud, err = NewADLv2(bucket, flags, config)
-	} else if config, ok := flags.Backend.(*S3Config); ok {
-		if strings.HasSuffix(flags.Endpoint, "/storage.googleapis.com") {
-			cloud, err = NewGCS3(bucket, flags, config)
-		} else {
-			cloud, err = NewS3(bucket, flags, config)
-		}
+	if config, ok := flags.Backend.(*S3Config); ok {
+		cloud, err = NewS3(bucket, flags, config)
 	} else {
 		err = fmt.Errorf("Unknown backend config: %T", flags.Backend)
 	}
-
 	return
 }
 
@@ -197,7 +185,6 @@ func newGoofys(ctx context.Context, bucket string, flags *FlagStorage,
 		log.Errorf("Unable to setup backend: %v", err)
 		return nil
 	}
-	_, fs.gcs = cloud.Delegate().(*GCS3)
 
 	randomObjectName := prefix + (RandStringBytesMaskImprSrc(32))
 	err = cloud.Init(randomObjectName)
@@ -880,7 +867,7 @@ func (fs *Goofys) OpenFile(
 	in := fs.getInodeOrDie(op.Inode)
 	fs.mu.RUnlock()
 
-	fh, err := in.OpenFile(op.Metadata)
+	fh, err := in.OpenFile(op.OpContext)
 	if err != nil {
 		return
 	}
@@ -936,7 +923,7 @@ func (fs *Goofys) SyncFile(
 	op *fuseops.SyncFileOp) (err error) {
 
 	// intentionally ignored, so that write()/sync()/write() works
-	// see https://github.com/kahing/goofys/issues/154
+	// see https://goofys/issues/154
 	return
 }
 
@@ -950,13 +937,13 @@ func (fs *Goofys) FlushFile(
 
 	// If the file handle has a tgid, then flush the file only if the
 	// incoming request's tgid matches the tgid in the file handle.
-	// This check helps us with scenarios like https://github.com/kahing/goofys/issues/273
+	// This check helps us with scenarios like https://goofys/issues/273
 	// Also see goofys_test.go:TestClientForkExec.
 	if fh.Tgid != nil {
-		tgid, err := GetTgid(op.Metadata.Pid)
+		tgid, err := GetTgid(op.OpContext.Pid)
 		if err != nil {
 			fh.inode.logFuse("<-- FlushFile",
-				fmt.Sprintf("Failed to retrieve tgid from op.Metadata.Pid. FlushFileOp:%#v, err:%v",
+				fmt.Sprintf("Failed to retrieve tgid from op.OpContext.Pid. FlushFileOp:%#v, err:%v",
 					op, err))
 			return fuse.EIO
 		}
@@ -1013,7 +1000,7 @@ func (fs *Goofys) CreateFile(
 	parent := fs.getInodeOrDie(op.Parent)
 	fs.mu.RUnlock()
 
-	inode, fh := parent.Create(op.Name, op.Metadata)
+	inode, fh := parent.Create(op.Name, op.OpContext)
 
 	parent.mu.Lock()
 

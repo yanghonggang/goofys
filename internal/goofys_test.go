@@ -15,7 +15,7 @@
 package internal
 
 import (
-	. "github.com/kahing/goofys/api/common"
+	. "goofys/api/common"
 
 	"bufio"
 	"bytes"
@@ -901,7 +901,7 @@ func (s *GoofysTest) TestReadFiles(t *C) {
 			in, err := parent.LookUp(en.Name)
 			t.Assert(err, IsNil)
 
-			fh, err := in.OpenFile(fuseops.OpMetadata{uint32(os.Getpid())})
+			fh, err := in.OpenFile(fuseops.OpContext{uint32(os.Getpid())})
 			t.Assert(err, IsNil)
 
 			buf := make([]byte, 4096)
@@ -927,7 +927,7 @@ func (s *GoofysTest) TestReadOffset(t *C) {
 	in, err := root.LookUp(f)
 	t.Assert(err, IsNil)
 
-	fh, err := in.OpenFile(fuseops.OpMetadata{uint32(os.Getpid())})
+	fh, err := in.OpenFile(fuseops.OpContext{uint32(os.Getpid())})
 	t.Assert(err, IsNil)
 
 	buf := make([]byte, 4096)
@@ -951,7 +951,7 @@ func (s *GoofysTest) TestReadOffset(t *C) {
 func (s *GoofysTest) TestCreateFiles(t *C) {
 	fileName := "testCreateFile"
 
-	_, fh := s.getRoot(t).Create(fileName, fuseops.OpMetadata{uint32(os.Getpid())})
+	_, fh := s.getRoot(t).Create(fileName, fuseops.OpContext{uint32(os.Getpid())})
 
 	err := fh.FlushFile()
 	t.Assert(err, IsNil)
@@ -970,7 +970,7 @@ func (s *GoofysTest) TestCreateFiles(t *C) {
 	inode, err := s.getRoot(t).LookUp(fileName)
 	t.Assert(err, IsNil)
 
-	fh, err = inode.OpenFile(fuseops.OpMetadata{uint32(os.Getpid())})
+	fh, err = inode.OpenFile(fuseops.OpContext{uint32(os.Getpid())})
 	t.Assert(err, IsNil)
 
 	err = fh.FlushFile()
@@ -1049,7 +1049,7 @@ func (s *GoofysTest) testWriteFileAt(t *C, fileName string, offset int64, size i
 		}
 	} else {
 		in := s.fs.inodes[lookup.Entry.Child]
-		fh, err = in.OpenFile(fuseops.OpMetadata{uint32(os.Getpid())})
+		fh, err = in.OpenFile(fuseops.OpContext{uint32(os.Getpid())})
 		t.Assert(err, IsNil)
 	}
 
@@ -1148,7 +1148,7 @@ func (s *GoofysTest) TestReadRandom(t *C) {
 	in, err := s.LookUpInode(t, "testLargeFile")
 	t.Assert(err, IsNil)
 
-	fh, err := in.OpenFile(fuseops.OpMetadata{uint32(os.Getpid())})
+	fh, err := in.OpenFile(fuseops.OpContext{uint32(os.Getpid())})
 	t.Assert(err, IsNil)
 	fr := &FileHandleReader{s.fs, fh, 0}
 
@@ -1180,7 +1180,7 @@ func (s *GoofysTest) TestMkDir(t *C) {
 	t.Assert(err, IsNil)
 
 	fileName := "file"
-	_, fh := inode.Create(fileName, fuseops.OpMetadata{uint32(os.Getpid())})
+	_, fh := inode.Create(fileName, fuseops.OpContext{uint32(os.Getpid())})
 
 	err = fh.FlushFile()
 	t.Assert(err, IsNil)
@@ -2855,7 +2855,7 @@ func (s *GoofysTest) TestDirMtimeCreate(t *C) {
 	m1 := attr.Mtime
 	time.Sleep(time.Second)
 
-	_, _ = root.Create("foo", fuseops.OpMetadata{uint32(os.Getpid())})
+	_, _ = root.Create("foo", fuseops.OpContext{uint32(os.Getpid())})
 	attr2, _ := root.GetAttributes()
 	m2 := attr2.Mtime
 
@@ -2918,7 +2918,7 @@ func (s *GoofysTest) TestRead403(t *C) {
 	in, err := s.LookUpInode(t, "file1")
 	t.Assert(err, IsNil)
 
-	fh, err := in.OpenFile(fuseops.OpMetadata{uint32(os.Getpid())})
+	fh, err := in.OpenFile(fuseops.OpContext{uint32(os.Getpid())})
 	t.Assert(err, IsNil)
 
 	s3.awsConfig.Credentials = credentials.AnonymousCredentials
@@ -2933,7 +2933,7 @@ func (s *GoofysTest) TestRead403(t *C) {
 	t.Assert(err, Equals, syscall.EACCES)
 
 	// now that the S3 GET has failed, try again, see
-	// https://github.com/kahing/goofys/pull/243
+	// https://goofys/pull/243
 	_, err = fh.ReadFile(0, buf)
 	t.Assert(err, Equals, syscall.EACCES)
 }
@@ -3380,7 +3380,7 @@ func (s *GoofysTest) TestVFS(t *C) {
 	_, err = in.LookUp("file5")
 	t.Assert(err, Equals, fuse.ENOENT)
 
-	_, fh := in.Create("testfile", fuseops.OpMetadata{uint32(os.Getpid())})
+	_, fh := in.Create("testfile", fuseops.OpContext{uint32(os.Getpid())})
 	err = fh.FlushFile()
 	t.Assert(err, IsNil)
 
@@ -3415,7 +3415,7 @@ func (s *GoofysTest) TestVFS(t *C) {
 
 	// create another file inside subdir to make sure that our
 	// mount check is correct for dir inside the root
-	_, fh = subdir.Create("testfile2", fuseops.OpMetadata{uint32(os.Getpid())})
+	_, fh = subdir.Create("testfile2", fuseops.OpContext{uint32(os.Getpid())})
 	err = fh.FlushFile()
 	t.Assert(err, IsNil)
 
@@ -3683,7 +3683,7 @@ func (s *GoofysTest) testMountsNested(t *C, cloud StorageBackend,
 	t.Assert(*dir_dir.Name, Equals, "dir")
 	t.Assert(dir_dir.dir.cloud == cloud, Equals, true)
 
-	_, fh := dir_in.Create("testfile", fuseops.OpMetadata{uint32(os.Getpid())})
+	_, fh := dir_in.Create("testfile", fuseops.OpContext{uint32(os.Getpid())})
 	err = fh.FlushFile()
 	t.Assert(err, IsNil)
 
@@ -3691,7 +3691,7 @@ func (s *GoofysTest) testMountsNested(t *C, cloud StorageBackend,
 	t.Assert(err, IsNil)
 	defer resp.Body.Close()
 
-	_, fh = dir_dir.Create("testfile", fuseops.OpMetadata{uint32(os.Getpid())})
+	_, fh = dir_dir.Create("testfile", fuseops.OpContext{uint32(os.Getpid())})
 	err = fh.FlushFile()
 	t.Assert(err, IsNil)
 
@@ -3946,7 +3946,7 @@ func (s *GoofysTest) TestWriteListFlush(t *C) {
 	t.Assert(err, IsNil)
 	s.fs.insertInode(root, dir)
 
-	in, fh := dir.Create("file1", fuseops.OpMetadata{})
+	in, fh := dir.Create("file1", fuseops.OpContext{})
 	t.Assert(in, NotNil)
 	t.Assert(fh, NotNil)
 	s.fs.insertInode(dir, in)
@@ -3996,7 +3996,7 @@ func (s *GoofysTest) TestWriteUnlinkFlush(t *C) {
 	t.Assert(err, IsNil)
 	s.fs.insertInode(root, dir)
 
-	in, fh := dir.Create("deleted", fuseops.OpMetadata{})
+	in, fh := dir.Create("deleted", fuseops.OpContext{})
 	t.Assert(in, NotNil)
 	t.Assert(fh, NotNil)
 	s.fs.insertInode(dir, in)
